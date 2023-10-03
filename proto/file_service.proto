@@ -3,8 +3,8 @@ syntax = "proto3";
 package file_service;
 
 service ShardFileService {
-    // Returns a list of files in the specified directory.
-    rpc GetShardFiles(GetShardFilesRequest) returns (GetShardFilesResponse) {};
+  rpc GetShardFiles(GetShardFilesRequest) returns (GetShardFilesResponse) {};
+  rpc DownloadShardFile (DownloadShardFileRequest) returns (stream DownloadShardFileResponse);
 }
 
 message GetShardFilesRequest {
@@ -18,4 +18,12 @@ message GetShardFilesResponse {
 message ShardFile {
     string path = 1;
     uint64 size = 2;
+}
+
+message DownloadShardFileRequest {
+    string relative_path = 1;
+}
+
+message DownloadShardFileResponse {
+    bytes chunk_data = 1;
 }
