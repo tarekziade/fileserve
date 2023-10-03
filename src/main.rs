@@ -112,38 +112,40 @@ impl ShardFileService for FileService {
         let path = self.root_path.join(request.relative_path);
         let (tx, rx) = mpsc::channel(32);
 
-        let file = TokioFile::open(&path)
-            .await
-            .map_err(|_| Status::not_found("File not found"))?;
+        tokio::spawn(async move {
+            let file = TokioFile::open(&path)
+                .await
+                .map_err(|_| Status::not_found("File not found")).unwrap();
 
-        let mut reader = BufReader::new(file);
-        let mut buffer = vec![0; 1024 * 1024];
+            let mut reader = BufReader::new(file);
+            let mut buffer = vec![0; 1024 * 1024];
 
-        let mut idx = 0;
-        println!("Sending {}", path.display());
-        loop {
-            match reader.read(&mut buffer).await {
-                Ok(0) => {
-                    break;
-                }
-                Ok(bytes_read) => {
-                    let chunk = DownloadShardFileResponse {
-                        chunk_data: buffer[..bytes_read].to_vec(),
-                        chunk_index: idx,
-                    };
-                    println!("{} sending chunk {}", path.display(), idx);
-                    tx.send(Ok(chunk)).await.expect("send failed");
-                    println!("{} sent chunk {}", path.display(), idx);
-                    idx += 1;
-                }
-                Err(_) => {
-                    tx.send(Err(Status::internal("Read error")))
-                        .await
-                        .expect("send failed");
-                    break;
+            let mut idx = 0;
+            println!("Sending {}", path.display());
+            loop {
+                match reader.read(&mut buffer).await {
+                    Ok(0) => {
+                        break;
+                    }
+                    Ok(bytes_read) => {
+                        let chunk = DownloadShardFileResponse {
+                            chunk_data: buffer[..bytes_read].to_vec(),
+                            chunk_index: idx,
+                        };
+                        println!("{} sending chunk {}", path.display(), idx);
+                        tx.send(Ok(chunk)).await.expect("send failed");
+                        println!("{} sent chunk {}", path.display(), idx);
+                        idx += 1;
+                    }
+                    Err(_) => {
+                        tx.send(Err(Status::internal("Read error")))
+                            .await
+                            .expect("send failed");
+                        break;
+                    }
                 }
             }
-        }
+        });
 
         Ok(Response::new(
             Box::pin(ReceiverStream::new(rx)) as Self::DownloadShardFileStream
@@ -154,7 +156,8 @@ impl ShardFileService for FileService {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "[::1]:50051".parse()?;
-    let file_service = FileService::new("/Users/tarekziade/Dev/nucliadb/vectors_benchmark/datasets/large".into());
+    let file_service =
+        FileService::new("/Users/tarekziade/Dev/nucliadb/vectors_benchmark/datasets/large".into());
     println!("Server listening on {}", addr);
     Server::builder()
         .add_service(ShardFileServiceServer::new(file_service))
