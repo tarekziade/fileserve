@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package file_service;
+
+service ShardFileService {
+    // Returns a list of files in the specified directory.
+    rpc GetShardFiles(GetShardFilesRequest) returns (GetShardFilesResponse) {};
+}
+
+message GetShardFilesRequest {
+}
+
+message GetShardFilesResponse {
+  int32 total = 1;
+  repeated ShardFile files = 2;
+}
+
+message ShardFile {
+    string path = 1;
+    uint64 size = 2;
+}
