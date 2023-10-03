@@ -2,7 +2,7 @@ use futures::{stream, Stream, StreamExt}; // 0.3.1
 use std::sync::{Arc, Mutex};
 use std::{io, path::PathBuf};
 use tokio::fs; // 0.2.4
-use tonic::{transport::Server, Request, Response, Status, Streaming};
+use tonic::{transport::Server, Request, Response, Status};
 
 use file_service::shard_file_service_server::{ShardFileService, ShardFileServiceServer};
 use file_service::*;
@@ -21,14 +21,12 @@ fn find_all_files(
         while let Some(child) = dir.next_entry().await? {
             if child.metadata().await?.is_dir() {
                 to_visit.push(child.path());
-            } else {
-                if let Ok(metadata) = child.metadata().await {
-                    let path = child.path().into_os_string().into_string().unwrap();
-                    files.push(ShardFile {
-                        path: path,
-                        size: metadata.len(),
-                    });
-                }
+            } else if let Ok(metadata) = child.metadata().await {
+                let path = child.path().into_os_string().into_string().unwrap();
+                files.push(ShardFile {
+                    path,
+                    size: metadata.len(),
+                });
             }
         }
         Ok(files)
@@ -57,7 +55,7 @@ impl ShardFileService for MyFileService {
         &self,
         request: Request<GetShardFilesRequest>,
     ) -> Result<Response<GetShardFilesResponse>, Status> {
-        let request = request.into_inner();
+        let _request = request.into_inner();
 
         let root_path = "/tmp";
         let paths = find_all_files(root_path);
