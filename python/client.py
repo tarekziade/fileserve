@@ -12,7 +12,6 @@ stub = ShardFileServiceStub(channel)
 resp = stub.GetShardFiles(GetShardFilesRequest())
 
 for file in resp.files:
-    print(f"Writing {file.path}")
     target = os.path.join(TARGET, file.path)
     os.makedirs(os.path.dirname(target), exist_ok=True)
 
@@ -20,4 +19,5 @@ for file in resp.files:
         for chunk in stub.DownloadShardFile(
             DownloadShardFileRequest(relative_path=file.path)
         ):
+            print(f"got chunk {chunk.chunk_index} for {file.path}")
             f.write(chunk.chunk_data)

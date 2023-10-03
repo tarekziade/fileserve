@@ -26,4 +26,5 @@ message DownloadShardFileRequest {
 
 message DownloadShardFileResponse {
     bytes chunk_data = 1;
+    int32 chunk_index = 2;
 }

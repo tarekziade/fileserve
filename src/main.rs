@@ -110,7 +110,6 @@ impl ShardFileService for FileService {
     ) -> Result<Response<Self::DownloadShardFileStream>, Status> {
         let request = request.into_inner();
         let path = self.root_path.join(request.relative_path);
-
         let (tx, rx) = mpsc::channel(32);
 
         let file = TokioFile::open(&path)
@@ -120,15 +119,22 @@ impl ShardFileService for FileService {
         let mut reader = BufReader::new(file);
         let mut buffer = vec![0; 1024 * 1024];
 
+        let mut idx = 0;
+        println!("Sending {}", path.display());
         loop {
             match reader.read(&mut buffer).await {
-                Ok(0) => break, // EOF
+                Ok(0) => {
+                    break;
+                }
                 Ok(bytes_read) => {
                     let chunk = DownloadShardFileResponse {
                         chunk_data: buffer[..bytes_read].to_vec(),
+                        chunk_index: idx,
                     };
-                    println!("Sending chunk for file {}", path.display());
+                    println!("{} sending chunk {}", path.display(), idx);
                     tx.send(Ok(chunk)).await.expect("send failed");
+                    println!("{} sent chunk {}", path.display(), idx);
+                    idx += 1;
                 }
                 Err(_) => {
                     tx.send(Err(Status::internal("Read error")))
